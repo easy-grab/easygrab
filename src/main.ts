@@ -55,6 +55,7 @@ let batchAmountSol = MIN_CLAIM_SOL;
 let batchCount = 3;
 let walletBalanceLabel = "";
 let historyAccess: HistoryAccess | null = null;
+let historyUnlockPromise: Promise<HistoryAccess> | null = null;
 let historyStatus = "Connect wallet";
 let appNotice: Notice | null = null;
 let activeRouteKey = "";
@@ -140,6 +141,19 @@ function replaceBatch(nextBatch: ClaimBatch) {
   syncActiveBatchState(nextBatch);
 }
 
+function mergeBatches(nextBatches: ClaimBatch[]) {
+  const merged = new Map<string, ClaimBatch>();
+  for (const batch of batches) {
+    merged.set(batch.id, batch);
+  }
+
+  for (const batch of nextBatches) {
+    merged.set(batch.id, batch);
+  }
+
+  batches = [...merged.values()].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+}
+
 function formatUtc(iso: string) {
   return new Date(iso).toISOString().replace(".000Z", "Z");
 }
@@ -194,14 +208,22 @@ function historyMessage(address: string) {
 
 async function unlockHistory(address: string) {
   if (historyAccess) return historyAccess;
+  if (historyUnlockPromise) return historyUnlockPromise;
 
   historyStatus = "Unlocking...";
   render();
 
-  const signature = await signWalletMessage(historyMessage(address));
-  historyAccess = await deriveHistoryAccess(signature);
-  historyStatus = "Unlocked";
-  return historyAccess;
+  historyUnlockPromise = signWalletMessage(historyMessage(address))
+    .then(async (signature) => {
+      historyAccess = await deriveHistoryAccess(signature);
+      historyStatus = "Unlocked";
+      return historyAccess;
+    })
+    .finally(() => {
+      historyUnlockPromise = null;
+    });
+
+  return historyUnlockPromise;
 }
 
 async function encryptedRecordForBatch(batch: ClaimBatch) {
@@ -230,7 +252,15 @@ async function saveBatchToServer(batch: ClaimBatch) {
   }
 }
 
+async function saveBatchToEncryptedHistory(batch: ClaimBatch) {
+  await unlockHistory(batch.creator);
+  await saveBatchToServer(batch);
+  historyStatus = `${batches.length} batches`;
+  render();
+}
+
 async function loadBatchesFromServer(address: string) {
+  const existingActiveBatchId = activeBatchId;
   const access = await unlockHistory(address);
   const response = await fetch(`${API_BASE}/api/batches?storageId=${encodeURIComponent(access.storageId)}`);
 
@@ -253,8 +283,8 @@ async function loadBatchesFromServer(address: string) {
     }
   }
 
-  batches = nextBatches.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
-  syncActiveBatchState(batches[0] ?? null);
+  mergeBatches(nextBatches);
+  syncActiveBatchState(batches.find((batch) => batch.id === existingActiveBatchId) ?? batches[0] ?? null);
 }
 
 async function refreshBatchStatus(batchId: string) {
@@ -939,19 +969,33 @@ function renderCreate() {
     navigateArchitecture();
   });
 
-  document.querySelector<HTMLButtonElement>("#primary-flow")?.addEventListener("click", async () => {
+  let primaryActionRunning = false;
+  async function runPrimaryFlow() {
+    if (primaryActionRunning) return;
+    primaryActionRunning = true;
+
     if (!walletAddress) {
       walletModalOpen = true;
       render();
+      primaryActionRunning = false;
       return;
     }
 
-    if (!coupons.length) {
-      await generateBatchFromInputs();
-      return;
-    }
+    try {
+      if (!coupons.length) {
+        await generateBatchFromInputs();
+        return;
+      }
 
-    await fundCurrentBatch();
+      await fundCurrentBatch();
+    } finally {
+      primaryActionRunning = false;
+    }
+  }
+
+  document.querySelector<HTMLButtonElement>("#primary-flow")?.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    void runPrimaryFlow();
   });
 
   document.querySelector<HTMLButtonElement>("#reset")?.addEventListener("click", () => {
@@ -967,8 +1011,16 @@ function renderCreate() {
       if (!walletAddress) {
         throw new Error("Connect a wallet before creating encrypted batch history.");
       }
-      await unlockHistory(walletAddress);
+      historyStatus = "Generating links";
+      setNotice({
+        tone: "info",
+        title: "Generating links",
+        body: "Creating claim links locally in this browser."
+      });
+      render();
+
       const nextCoupons = generateCouponSecrets(count, amount, cluster);
+      fundingTotalLamports(nextCoupons);
       const nextBatch: ClaimBatch = {
         id: crypto.randomUUID(),
         creator: walletAddress,
@@ -980,10 +1032,26 @@ function renderCreate() {
       batchAmountSol = amount.trim();
       batchCount = count;
       replaceBatch(nextBatch);
-      await saveBatchToServer(nextBatch);
-      historyStatus = `${batches.length} batches`;
+      historyStatus = historyAccess ? "Saving history" : "Generated locally";
       appNotice = null;
       render();
+
+      void saveBatchToEncryptedHistory(nextBatch)
+        .then(() => {
+          historyStatus = `${batches.length} batches`;
+          render();
+        })
+        .catch((error) => {
+          historyStatus = "History not saved";
+          setNotice({
+            tone: "info",
+            title: "Links generated",
+            body: `Claim links are ready. Encrypted history was not saved yet: ${
+              error instanceof Error ? error.message : String(error)
+            }`
+          });
+          render();
+        });
     } catch (error) {
       setNotice({
         tone: "error",
