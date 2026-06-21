@@ -6,6 +6,23 @@ import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("..", import.meta.url));
 const dataFile = join(root, "data", "encrypted-batches.json");
 const port = Number(process.env.PORT || 8787);
+const host = process.env.HOST || "127.0.0.1";
+const maxBodyBytes = Number(process.env.MAX_BODY_BYTES || 1_000_000);
+const defaultOrigins = ["http://127.0.0.1:5173", "http://localhost:5173", "https://easygrab.fun", "https://www.easygrab.fun"];
+const allowedOrigins = new Set(
+  (process.env.ALLOWED_ORIGINS || process.env.ALLOWED_ORIGIN || defaultOrigins.join(","))
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean)
+);
+let storeQueue = Promise.resolve();
+
+class HttpError extends Error {
+  constructor(status, message) {
+    super(message);
+    this.status = status;
+  }
+}
 
 async function readStore() {
   try {
@@ -23,38 +40,94 @@ async function writeStore(store) {
   await rename(tmp, dataFile);
 }
 
-async function readJson(request) {
-  const chunks = [];
-  for await (const chunk of request) {
-    chunks.push(chunk);
+async function updateStore(mutator) {
+  const previous = storeQueue;
+  let release;
+  storeQueue = new Promise((resolve) => {
+    release = resolve;
+  });
+
+  await previous.catch(() => undefined);
+  try {
+    const store = await readStore();
+    const result = await mutator(store);
+    await writeStore(store);
+    return result;
+  } finally {
+    release();
   }
-  return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
 }
 
-function send(response, status, body) {
-  response.writeHead(status, {
-    "Access-Control-Allow-Origin": "*",
+async function readJson(request) {
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of request) {
+    size += chunk.length;
+    if (size > maxBodyBytes) {
+      throw new HttpError(413, "Request body too large");
+    }
+    chunks.push(chunk);
+  }
+
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
+  } catch {
+    throw new HttpError(400, "Invalid JSON");
+  }
+}
+
+function corsHeaders(request) {
+  const origin = request.headers.origin;
+  const headers = {
     "Access-Control-Allow-Methods": "GET,POST,PATCH,OPTIONS",
     "Access-Control-Allow-Headers": "content-type",
+    "Vary": "Origin"
+  };
+
+  if (origin && allowedOrigins.has(origin)) {
+    headers["Access-Control-Allow-Origin"] = origin;
+  }
+
+  return headers;
+}
+
+function assertAllowedOrigin(request) {
+  const origin = request.headers.origin;
+  if (origin && !allowedOrigins.has(origin)) {
+    throw new HttpError(403, "Origin not allowed");
+  }
+}
+
+function send(request, response, status, body) {
+  response.writeHead(status, {
+    ...corsHeaders(request),
     "Content-Type": "application/json; charset=utf-8"
   });
   response.end(JSON.stringify(body));
 }
 
+function validShortString(value, maxLength) {
+  return typeof value === "string" && value.length > 0 && value.length <= maxLength;
+}
+
 function validRecord(record) {
   return (
-    typeof record?.id === "string" &&
-    typeof record?.storageId === "string" &&
-    typeof record?.createdAt === "string" &&
-    typeof record?.payload?.iv === "string" &&
-    typeof record?.payload?.ciphertext === "string"
+    validShortString(record?.id, 96) &&
+    validShortString(record?.storageId, 96) &&
+    validShortString(record?.createdAt, 64) &&
+    record?.payload?.version === 1 &&
+    record?.payload?.cipher === "AES-256-GCM" &&
+    validShortString(record?.payload?.iv, 128) &&
+    validShortString(record?.payload?.ciphertext, 750_000)
   );
 }
 
 createServer(async (request, response) => {
   try {
+    assertAllowedOrigin(request);
+
     if (request.method === "OPTIONS") {
-      send(response, 204, {});
+      send(request, response, 204, {});
       return;
     }
 
@@ -63,12 +136,12 @@ createServer(async (request, response) => {
     if (request.method === "GET" && url.pathname === "/api/batches") {
       const storageId = url.searchParams.get("storageId");
       if (!storageId) {
-        send(response, 400, { error: "Missing storageId" });
+        send(request, response, 400, { error: "Missing storageId" });
         return;
       }
 
       const store = await readStore();
-      send(response, 200, {
+      send(request, response, 200, {
         records: store.records.filter((record) => record.storageId === storageId)
       });
       return;
@@ -77,57 +150,69 @@ createServer(async (request, response) => {
     if (request.method === "POST" && url.pathname === "/api/batches") {
       const body = await readJson(request);
       if (!validRecord(body)) {
-        send(response, 400, { error: "Invalid encrypted batch record" });
+        send(request, response, 400, { error: "Invalid encrypted batch record" });
         return;
       }
 
-      const store = await readStore();
-      const now = new Date().toISOString();
-      const existingIndex = store.records.findIndex((record) => record.id === body.id);
-      const record = { ...body, updatedAt: now };
+      await updateStore(async (store) => {
+        const now = new Date().toISOString();
+        const existingIndex = store.records.findIndex((record) => record.id === body.id);
+        const record = { ...body, updatedAt: now };
 
-      if (existingIndex >= 0) {
-        store.records[existingIndex] = record;
-      } else {
-        store.records.unshift(record);
-      }
+        if (existingIndex >= 0) {
+          store.records[existingIndex] = record;
+        } else {
+          store.records.unshift(record);
+        }
+      });
 
-      await writeStore(store);
-      send(response, 200, { ok: true });
+      send(request, response, 200, { ok: true });
       return;
     }
 
     if (request.method === "PATCH" && url.pathname.startsWith("/api/batches/")) {
       const id = decodeURIComponent(url.pathname.slice("/api/batches/".length));
       const body = await readJson(request);
-      const store = await readStore();
-      const index = store.records.findIndex((record) => record.id === id && record.storageId === body.storageId);
-
-      if (index < 0) {
-        send(response, 404, { error: "Record not found" });
+      if (!validShortString(id, 96) || !validShortString(body?.storageId, 96)) {
+        send(request, response, 400, { error: "Invalid batch id" });
         return;
       }
 
-      if (typeof body?.payload?.iv !== "string" || typeof body?.payload?.ciphertext !== "string") {
-        send(response, 400, { error: "Invalid encrypted payload" });
+      const updated = await updateStore(async (store) => {
+        const index = store.records.findIndex((record) => record.id === id && record.storageId === body.storageId);
+        if (index < 0) return false;
+
+        if (
+          body?.payload?.version !== 1 ||
+          body?.payload?.cipher !== "AES-256-GCM" ||
+          !validShortString(body?.payload?.iv, 128) ||
+          !validShortString(body?.payload?.ciphertext, 750_000)
+        ) {
+          throw new HttpError(400, "Invalid encrypted payload");
+        }
+
+        store.records[index] = {
+          ...store.records[index],
+          payload: body.payload,
+          updatedAt: new Date().toISOString()
+        };
+        return true;
+      });
+
+      if (!updated) {
+        send(request, response, 404, { error: "Record not found" });
         return;
       }
 
-      store.records[index] = {
-        ...store.records[index],
-        payload: body.payload,
-        updatedAt: new Date().toISOString()
-      };
-
-      await writeStore(store);
-      send(response, 200, { ok: true });
+      send(request, response, 200, { ok: true });
       return;
     }
 
-    send(response, 404, { error: "Not found" });
+    send(request, response, 404, { error: "Not found" });
   } catch (error) {
-    send(response, 500, { error: error instanceof Error ? error.message : String(error) });
+    const status = error instanceof HttpError ? error.status : 500;
+    send(request, response, status, { error: error instanceof Error ? error.message : String(error) });
   }
-}).listen(port, "127.0.0.1", () => {
-  console.log(`Easy Grab encrypted batch API running at http://127.0.0.1:${port}`);
+}).listen(port, host, () => {
+  console.log(`Easy Grab encrypted batch API running at http://${host}:${port}`);
 });

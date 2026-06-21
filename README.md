@@ -108,10 +108,12 @@ This runs:
 ## Deployment Notes
 
 - Deploy the static Vite frontend over HTTPS.
-- Run the encrypted batch API separately or adapt it to your hosting provider's serverless API format.
+- Run the encrypted batch API separately on persistent storage, or adapt it to your hosting provider's database/serverless storage.
 - Set `VITE_PUBLIC_APP_URL=https://easygrab.fun` before generating real links.
 - Set `VITE_API_URL` to the HTTPS URL of the encrypted history API.
 - Set `VITE_MAINNET_RPC_URL` to a reliable mainnet RPC provider before real mainnet use.
+- Set API `ALLOWED_ORIGIN` to the production frontend origin.
+- Back up `data/encrypted-batches.json` if using the included file-backed API.
 - Use Solscan links for transaction verification.
 
 See `DEPLOYMENT.md` for local testing, Vercel domain setup, and production environment variables.

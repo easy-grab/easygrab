@@ -11,6 +11,10 @@ VITE_PUBLIC_APP_URL=http://127.0.0.1:5173
 VITE_API_URL=http://127.0.0.1:8787
 VITE_MAINNET_RPC_URL=https://mainnet.helius-rpc.com/?api-key=YOUR_API_KEY
 VITE_DEVNET_RPC_URL=https://api.devnet.solana.com
+HOST=127.0.0.1
+PORT=8787
+ALLOWED_ORIGIN=http://127.0.0.1:5173
+MAX_BODY_BYTES=1000000
 ```
 
 Install and run:
@@ -103,12 +107,40 @@ For production, run the API on a server that has persistent storage, such as a V
 
 Do not deploy the current file-backed API as a plain Vercel serverless function unless it is adapted to persistent storage such as Vercel KV, Postgres, Supabase, or another database. Serverless local files are not reliable persistent storage.
 
+Recommended production API env:
+
+```bash
+HOST=127.0.0.1
+PORT=8787
+ALLOWED_ORIGIN=https://easygrab.fun,https://www.easygrab.fun
+MAX_BODY_BYTES=1000000
+```
+
+Use `HOST=127.0.0.1` when the API runs behind Nginx, Caddy, Cloudflare Tunnel, or another HTTPS reverse proxy. Use `HOST=0.0.0.0` only when the machine firewall and reverse proxy rules are already locked down.
+
+The API must be reachable over HTTPS from the browser. A typical setup is:
+
+```txt
+https://api.easygrab.fun/api/*  ->  http://127.0.0.1:8787/api/*
+```
+
+Backup requirement:
+
+- Back up `data/encrypted-batches.json` automatically.
+- Keep at least one off-machine backup copy.
+- Test restore before mainnet launch.
+- Monitor API disk space and process uptime.
+
+The browser blocks mainnet funding until the encrypted draft history is saved. After funding, status updates use the same encrypted API and also keep a local retry queue if the network briefly fails.
+
 ## Production Checklist
 
 - `easygrab.fun` serves the Vercel frontend over HTTPS.
 - `VITE_PUBLIC_APP_URL` is set to `https://easygrab.fun`.
 - `VITE_API_URL` points to an HTTPS API endpoint.
 - The encrypted history API is online before mainnet funding.
+- The encrypted history API has persistent storage and automatic backups.
+- `ALLOWED_ORIGIN` on the API includes only the production frontend origins.
 - `VITE_MAINNET_RPC_URL` uses a dedicated RPC provider.
 - GitHub Actions CI passes.
 - CodeQL is enabled.
@@ -118,3 +150,20 @@ Do not deploy the current file-backed API as a plain Vercel serverless function 
   - platform fee: `1%`, minimum `0.001 SOL`
   - fee recipient: `4L2Ws5z7bQEoCyG2kAhjW2EqxFrUtJoFj8JnwyogTzXw`
   - fee use: Easy Grab marketing and ecosystem growth
+
+## Mainnet Smoke Test
+
+Run this after deployment and before public promotion:
+
+1. Open `https://easygrab.fun`.
+2. Confirm the site is on `Mainnet`.
+3. Connect a wallet with a small amount of SOL.
+4. Create `1` claim with `0.01 SOL`.
+5. Confirm the app shows the reward, the `1% / min 0.001 SOL` platform fee, and the required total.
+6. Generate the claim link.
+7. Confirm encrypted server history appears in the saved batch list.
+8. Fund the batch.
+9. Open the claim link in a separate browser profile or private window.
+10. Claim with a wallet, then repeat a separate test with pasted address receive mode.
+11. Confirm each transaction opens on Solscan.
+12. Return to the creator wallet and confirm the batch item shows the claimed link as disabled.
