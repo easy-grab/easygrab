@@ -584,7 +584,7 @@ function renderShell(content: string) {
                 <button data-network="mainnet-beta" class="${cluster === "mainnet-beta" ? "is-selected" : ""}" role="option">Mainnet</button>
               </div>
             </div>
-            <div class="wallet-panel ${walletAddress ? "is-connected" : ""}">
+            <div class="wallet-panel ${walletAddress ? "is-connected" : ""} ${walletMenuOpen ? "is-menu-open" : ""}">
               <button id="connect" class="wallet-button" aria-haspopup="${walletAddress ? "menu" : "false"}" aria-expanded="${walletMenuOpen}">
                 ${walletAddress ? shortAddress(walletAddress) : "Connect wallet"}
               </button>
@@ -594,7 +594,7 @@ function renderShell(content: string) {
                       <span>${cluster === "devnet" ? "Devnet" : "Mainnet"}</span>
                       <strong>${walletBalanceLabel || "Checking..."}</strong>
                     </div>
-                    <div class="wallet-menu ${walletMenuOpen ? "is-open" : ""}" role="menu">
+                    <div class="wallet-menu ${walletMenuOpen ? "is-open" : ""}" role="menu" aria-label="Wallet menu">
                       <button id="disconnect-wallet" role="menuitem">Disconnect</button>
                     </div>`
                   : ""
@@ -647,13 +647,20 @@ function renderShell(content: string) {
     });
   });
 
-  document.querySelector<HTMLButtonElement>("#connect")?.addEventListener("click", async () => {
+  const connectButton = document.querySelector<HTMLButtonElement>("#connect");
+
+  connectButton?.addEventListener("pointerdown", (event) => {
     if (walletAddress) {
+      event.preventDefault();
+      event.stopPropagation();
       walletMenuOpen = !walletMenuOpen;
       networkMenuOpen = false;
       render();
-      return;
     }
+  });
+
+  connectButton?.addEventListener("click", async () => {
+    if (walletAddress) return;
 
     walletModalOpen = true;
     render();
