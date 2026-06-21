@@ -32,14 +32,15 @@ Easy Grab lets a creator distribute SOL claim links without trusting a backend h
 | Dependency vulnerability | `npm audit --omit=dev` runs in CI. Dependabot is enabled. |
 | Third-party analytics leak links | Security check blocks common analytics packages and external scripts. |
 | Claim replay | Claiming empties the temporary claim wallet. |
+| Funded batch missing from server history | Funding is blocked until encrypted history is saved before the transaction. Post-funding encrypted updates retry locally if the API is interrupted. |
 | Malicious code added later | CI, CodeQL, PR checklist, and security check run on pull requests. |
 | Hidden platform fee | The UI and source disclose the 1% platform fee and 0.001 SOL minimum before funding. |
 
 ## Economic Rules
 
-- Minimum claim size: `0.05 SOL`.
+- Minimum claim size: `0.01 SOL`.
 - Platform fee: `1%` of funded rewards, with a `0.001 SOL` minimum.
-- Platform fee recipient: `FDZ6AkGe3s4JN5jkwzYxzv1fTJkjgHN2nmXVQ6oiBQNT`.
+- Platform fee recipient: `4L2Ws5z7bQEoCyG2kAhjW2EqxFrUtJoFj8JnwyogTzXw`.
 - Fee use: marketing and ecosystem growth.
 
 ## Residual Risks

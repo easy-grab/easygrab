@@ -17,6 +17,8 @@ export type ClaimBatch = {
   createdAt: string;
   coupons: Coupon[];
   fundSignature?: string;
+  historySavedAt?: string;
+  historyPending?: boolean;
 };
 
 export type BatchStatus = "draft" | "funded" | "partially-claimed" | "claimed";

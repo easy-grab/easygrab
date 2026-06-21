@@ -8,6 +8,11 @@ import {
   type HistoryAccess
 } from "./crypto";
 import {
+  enqueuePendingHistoryRecord,
+  readPendingHistoryRecords,
+  writePendingHistoryRecords
+} from "./historyOutbox";
+import {
   claimCoupon,
   claimCouponToAddress,
   connectWallet,
@@ -87,6 +92,8 @@ const GITHUB_URL = "https://github.com/easy-grab/easygrab";
 const API_BASE = import.meta.env.VITE_API_URL?.trim() || "http://127.0.0.1:8787";
 const BRAND_LOGO_URL = "/easygrab-logo-v2.png";
 const WALLET_BALANCE_REFRESH_MS = 20_000;
+const HISTORY_SAVE_RETRIES = 6;
+const HISTORY_SAVE_RETRY_MS = [600, 1200, 2200, 3600, 5200, 8000];
 
 const OFFICIAL_LINKS = {
   solanaDocs: "https://solana.com/docs",
@@ -104,6 +111,10 @@ const OFFICIAL_LINKS = {
 function setBusy(value: boolean) {
   busy = value;
   render();
+}
+
+function wait(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 function explorer(signature: string) {
@@ -240,8 +251,7 @@ async function encryptedRecordForBatch(batch: ClaimBatch) {
   };
 }
 
-async function saveBatchToServer(batch: ClaimBatch) {
-  const record = await encryptedRecordForBatch(batch);
+async function postEncryptedRecord(record: EncryptedBatchRecord) {
   const response = await fetch(`${API_BASE}/api/batches`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -253,11 +263,69 @@ async function saveBatchToServer(batch: ClaimBatch) {
   }
 }
 
-async function saveBatchToEncryptedHistory(batch: ClaimBatch) {
+async function postEncryptedRecordWithRetry(record: EncryptedBatchRecord) {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < HISTORY_SAVE_RETRIES; attempt += 1) {
+    try {
+      await postEncryptedRecord(record);
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt < HISTORY_SAVE_RETRIES - 1) {
+        await wait(HISTORY_SAVE_RETRY_MS[attempt] ?? 8000);
+      }
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error(String(lastError));
+}
+
+async function flushPendingHistoryRecords() {
+  const records = readPendingHistoryRecords();
+  if (!records.length) return;
+
+  const remaining: EncryptedBatchRecord[] = [];
+  for (const record of records) {
+    try {
+      await postEncryptedRecordWithRetry(record);
+    } catch {
+      remaining.push(record);
+    }
+  }
+
+  writePendingHistoryRecords(remaining);
+}
+
+async function saveBatchToServer(batch: ClaimBatch, options: { queueOnFailure?: boolean } = {}) {
   await unlockHistory(batch.creator);
-  await saveBatchToServer(batch);
+  const batchToSave: ClaimBatch = {
+    ...batch,
+    historyPending: false,
+    historySavedAt: new Date().toISOString()
+  };
+  const record = await encryptedRecordForBatch(batchToSave);
+
+  try {
+    await postEncryptedRecordWithRetry(record);
+  } catch (error) {
+    if (options.queueOnFailure) {
+      enqueuePendingHistoryRecord(record);
+    }
+    throw error;
+  }
+
+  const active = currentBatch();
+  if (active?.id === batch.id) {
+    replaceBatch(batchToSave);
+  }
   historyStatus = `${batches.length} batches`;
+  return batchToSave;
+}
+
+async function saveBatchToEncryptedHistory(batch: ClaimBatch) {
+  const savedBatch = await saveBatchToServer(batch, { queueOnFailure: true });
   render();
+  return savedBatch;
 }
 
 async function loadBatchesFromServer(address: string) {
@@ -306,7 +374,7 @@ async function refreshBatchStatus(batchId: string) {
   const nextBatch = { ...batch, coupons: updatedCoupons };
 
   replaceBatch(nextBatch);
-  await saveBatchToServer(nextBatch);
+  await saveBatchToServer(nextBatch, { queueOnFailure: true });
 }
 
 function couponStatus(coupon: Coupon) {
@@ -354,6 +422,10 @@ function fundingErrorMessage(error: unknown) {
   }
 
   return message;
+}
+
+function nonCriticalHistoryMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function isMainnetRpcBlocked(error: unknown) {
@@ -456,6 +528,7 @@ function startWalletBalanceWatcher() {
   stopWalletBalanceWatcher();
   walletBalanceTimer = window.setInterval(() => {
     void refreshWalletBalance({ showChecking: false });
+    void flushPendingHistoryRecords();
   }, WALLET_BALANCE_REFRESH_MS);
 }
 
@@ -1031,13 +1104,14 @@ function renderCreate() {
         creator: walletAddress,
         cluster,
         createdAt: new Date().toISOString(),
-        coupons: nextCoupons
+        coupons: nextCoupons,
+        historyPending: true
       };
 
       batchAmountSol = amount.trim();
       batchCount = count;
       replaceBatch(nextBatch);
-      historyStatus = historyAccess ? "Saving history" : "Generated locally";
+      historyStatus = "Saving history";
       appNotice = null;
       render();
 
@@ -1047,11 +1121,13 @@ function renderCreate() {
           render();
         })
         .catch((error) => {
-          historyStatus = "History not saved";
+          const queuedBatch = { ...nextBatch, historyPending: true };
+          replaceBatch(queuedBatch);
+          historyStatus = "History sync queued";
           setNotice({
             tone: "info",
             title: "Links generated",
-            body: `Claim links are ready. Encrypted history was not saved yet: ${
+            body: `Claim links are ready, but funding will wait until encrypted history can be saved. ${ 
               error instanceof Error ? error.message : String(error)
             }`
           });
@@ -1068,19 +1144,31 @@ function renderCreate() {
   }
 
   async function fundCurrentBatch() {
+    let confirmedSignature = "";
     try {
       setBusy(true);
-      const creator = await connectAndTrackWallet();
-      const signature = await fundCoupons(cluster, creator, coupons);
       const batch = currentBatch();
-      if (batch) {
-        const nextBatch = { ...batch, fundSignature: signature };
-        replaceBatch(nextBatch);
-        await saveBatchToServer(nextBatch);
-      } else {
-        lastFundSignature = signature;
+      if (!batch) {
+        throw new Error("Generate a batch before funding.");
       }
-      await refreshBatchStatus(activeBatchId);
+      if (!walletAddress) {
+        throw new Error("Connect the funding wallet before funding.");
+      }
+
+      historyStatus = "Saving before funding";
+      render();
+      const savedDraft = await saveBatchToServer(batch);
+
+      const creator = new PublicKey(walletAddress);
+      const signature = await fundCoupons(cluster, creator, coupons);
+      confirmedSignature = signature;
+      const nextBatch = { ...savedDraft, fundSignature: signature };
+      replaceBatch(nextBatch);
+
+      historyStatus = "Saving funding record";
+      render();
+      await saveBatchToServer(nextBatch, { queueOnFailure: true });
+      await refreshBatchStatus(nextBatch.id);
       await refreshWalletBalance();
       setNotice({
         tone: "success",
@@ -1090,6 +1178,21 @@ function renderCreate() {
         action: "View transaction"
       });
     } catch (error) {
+      if (confirmedSignature) {
+        setNotice({
+          tone: "info",
+          title: "Funding confirmed",
+          body: `The transaction succeeded. Encrypted history or status sync is retrying locally, and the encrypted update is kept in this browser until it can be uploaded. Keep this browser open until history shows saved. ${nonCriticalHistoryMessage(
+            error
+          )}`,
+          href: explorer(confirmedSignature),
+          action: "View transaction"
+        });
+        historyStatus = "History sync queued";
+        render();
+        return;
+      }
+
       setNotice({
         tone: "error",
         title: "Funding failed",
@@ -1568,12 +1671,17 @@ window.addEventListener("focus", () => {
   if (walletAddress) {
     void refreshWalletBalance({ showChecking: false });
   }
+  void flushPendingHistoryRecords();
 });
 
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible" && walletAddress) {
     void refreshWalletBalance({ showChecking: false });
   }
+  if (document.visibilityState === "visible") {
+    void flushPendingHistoryRecords();
+  }
 });
 
+void flushPendingHistoryRecords();
 render();

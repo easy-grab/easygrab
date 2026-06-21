@@ -11,26 +11,27 @@ Official GitHub: https://github.com/easy-grab/easygrab
 Easy Grab creates one temporary Solana wallet per reward link.
 
 1. A creator connects Phantom, Solflare, or Coinbase Wallet.
-2. The creator chooses `SOL per claim` and `Claims in batch`. Each claim must be at least `0.05 SOL`.
+2. The creator chooses `SOL per claim` and `Claims in batch`. Each claim must be at least `0.01 SOL`.
 3. The browser generates temporary claim wallets.
-4. The creator funds the batch in one wallet transaction.
-5. Each recipient opens a claim link and chooses one of two receive modes:
+4. The encrypted batch history is saved before mainnet funding can start.
+5. The creator funds the batch in one wallet transaction.
+6. Each recipient opens a claim link and chooses one of two receive modes:
    - Connect a wallet and receive the full claim amount.
    - Paste a Solana address and receive without connecting a wallet. The funded link pays the network fee, so the received amount is slightly lower.
-6. After claim, the funded temporary wallet is emptied and the link is shown as claimed.
+7. After claim, the funded temporary wallet is emptied and the link is shown as claimed.
 
 ## Fees and Minimums
 
-- Minimum claim size: `0.05 SOL` per claim link.
+- Minimum claim size: `0.01 SOL` per claim link.
 - Platform fee: `1%` of the total reward amount in each funded batch, with a `0.001 SOL` minimum.
 - The platform fee is included in the same funding transaction.
-- Platform fee recipient: `FDZ6AkGe3s4JN5jkwzYxzv1fTJkjgHN2nmXVQ6oiBQNT`
+- Platform fee recipient: `4L2Ws5z7bQEoCyG2kAhjW2EqxFrUtJoFj8JnwyogTzXw`
 - Platform fee use: Easy Grab marketing and ecosystem growth.
 
 Example:
 
 ```txt
-2 links x 0.05 SOL = 0.10 SOL rewards
+2 links x 0.01 SOL = 0.02 SOL rewards
 1% platform fee = 0.001 SOL
 Solana network fee is added at transaction time
 ```
@@ -38,8 +39,8 @@ Solana network fee is added at transaction time
 Small batch example:
 
 ```txt
-1 link x 0.05 SOL = 0.05 SOL rewards
-1% would be 0.0005 SOL, so the minimum platform fee applies: 0.001 SOL
+1 link x 0.01 SOL = 0.01 SOL rewards
+1% would be 0.0001 SOL, so the minimum platform fee applies: 0.001 SOL
 Solana network fee is added at transaction time
 ```
 
@@ -47,6 +48,8 @@ Solana network fee is added at transaction time
 
 - No central Easy Grab hot wallet.
 - Batch history is encrypted in the browser before it is sent to the API server.
+- Funding is blocked until encrypted batch history is saved successfully.
+- If post-funding status sync is interrupted, encrypted updates are kept in a browser retry queue and retried automatically.
 - The encrypted history storage id is derived from a wallet signature.
 - The API server stores encrypted payloads, not readable batch history.
 - Claim secrets are carried in the URL fragment after `#`.

@@ -12,12 +12,12 @@ import bs58 from "bs58";
 import type { Cluster, Coupon, WalletOption, WalletProvider } from "./types";
 
 export const MAX_COUPONS_PER_BATCH = 12;
-export const MIN_CLAIM_SOL = "0.05";
-export const MIN_CLAIM_LAMPORTS = 50_000_000;
+export const MIN_CLAIM_SOL = "0.01";
+export const MIN_CLAIM_LAMPORTS = 10_000_000;
 export const PLATFORM_FEE_BPS = 100;
 export const MIN_PLATFORM_FEE_SOL = "0.001";
 export const MIN_PLATFORM_FEE_LAMPORTS = 1_000_000;
-export const PLATFORM_FEE_RECIPIENT = "FDZ6AkGe3s4JN5jkwzYxzv1fTJkjgHN2nmXVQ6oiBQNT";
+export const PLATFORM_FEE_RECIPIENT = "4L2Ws5z7bQEoCyG2kAhjW2EqxFrUtJoFj8JnwyogTzXw";
 
 let activeWallet: WalletProvider | null = null;
 let rpcQueue = Promise.resolve();

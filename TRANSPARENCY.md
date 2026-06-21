@@ -18,18 +18,20 @@ Easy Grab is designed to be easy to distrust and easy to verify.
 ## Claims We Can Safely Make
 
 - Easy Grab does not run a backend hot wallet.
+- Easy Grab blocks funding until encrypted batch history has been saved.
 - Claim secrets are generated client-side.
 - Claim secrets are carried in URL fragments, not query parameters.
 - The server does not need a database of coupon secrets.
 - Funding includes a visible 1% platform fee, with a 0.001 SOL minimum.
 - The platform fee is reinvested into marketing and ecosystem growth.
 - Anyone can inspect the source and run `npm run verify`.
+- Interrupted encrypted history updates are retried from a local encrypted outbox.
 
 ## Fee Model
 
-- Minimum claim size: `0.05 SOL`.
+- Minimum claim size: `0.01 SOL`.
 - Platform fee: `1%` of funded rewards, with a `0.001 SOL` minimum.
-- Recipient: `FDZ6AkGe3s4JN5jkwzYxzv1fTJkjgHN2nmXVQ6oiBQNT`.
+- Recipient: `4L2Ws5z7bQEoCyG2kAhjW2EqxFrUtJoFj8JnwyogTzXw`.
 
 ## Claims We Should Not Make
 

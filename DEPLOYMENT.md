@@ -33,13 +33,14 @@ After editing `.env`, restart `npm run dev`. Vite only reads env values at serve
 
 1. Connect wallet.
 2. Confirm the top wallet balance card shows a balance with up to four decimals.
-3. Confirm `SOL per claim` starts at `0.05`.
+3. Confirm `SOL per claim` starts at `0.01`.
 4. Confirm the batch preview shows the 1% platform fee and 0.001 SOL minimum.
 5. Generate a devnet batch.
-6. Fund the batch.
-7. Open a claim link.
-8. Claim with wallet or paste a Solana address.
-9. Confirm transaction links open on Solscan.
+6. Confirm encrypted history is saved before funding.
+7. Fund the batch.
+8. Open a claim link.
+9. Claim with wallet or paste a Solana address.
+10. Confirm transaction links open on Solscan.
 
 ## Vercel Frontend
 
@@ -107,12 +108,13 @@ Do not deploy the current file-backed API as a plain Vercel serverless function 
 - `easygrab.fun` serves the Vercel frontend over HTTPS.
 - `VITE_PUBLIC_APP_URL` is set to `https://easygrab.fun`.
 - `VITE_API_URL` points to an HTTPS API endpoint.
+- The encrypted history API is online before mainnet funding.
 - `VITE_MAINNET_RPC_URL` uses a dedicated RPC provider.
 - GitHub Actions CI passes.
 - CodeQL is enabled.
 - Dependabot is enabled.
 - README, SECURITY, THREAT_MODEL, and TRANSPARENCY disclose:
-  - minimum claim size: `0.05 SOL`
+  - minimum claim size: `0.01 SOL`
   - platform fee: `1%`, minimum `0.001 SOL`
-  - fee recipient: `FDZ6AkGe3s4JN5jkwzYxzv1fTJkjgHN2nmXVQ6oiBQNT`
+  - fee recipient: `4L2Ws5z7bQEoCyG2kAhjW2EqxFrUtJoFj8JnwyogTzXw`
   - fee use: Easy Grab marketing and ecosystem growth
