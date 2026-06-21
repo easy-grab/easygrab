@@ -19,7 +19,7 @@ Recipients can claim in two ways:
 ## Economic Model
 
 - Minimum claim: 0.05 SOL
-- Platform fee: 1% of funded rewards
+- Platform fee: 1% of funded rewards, minimum 0.001 SOL
 - Fee use: marketing and ecosystem growth
 
 ## Tone

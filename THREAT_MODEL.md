@@ -33,12 +33,12 @@ Easy Grab lets a creator distribute SOL claim links without trusting a backend h
 | Third-party analytics leak links | Security check blocks common analytics packages and external scripts. |
 | Claim replay | Claiming empties the temporary claim wallet. |
 | Malicious code added later | CI, CodeQL, PR checklist, and security check run on pull requests. |
-| Hidden platform fee | The UI and source disclose the 1% platform fee before funding. |
+| Hidden platform fee | The UI and source disclose the 1% platform fee and 0.001 SOL minimum before funding. |
 
 ## Economic Rules
 
 - Minimum claim size: `0.05 SOL`.
-- Platform fee: `1%` of funded rewards.
+- Platform fee: `1%` of funded rewards, with a `0.001 SOL` minimum.
 - Platform fee recipient: `FDZ6AkGe3s4JN5jkwzYxzv1fTJkjgHN2nmXVQ6oiBQNT`.
 - Fee use: marketing and ecosystem growth.
 

@@ -9,12 +9,12 @@ Easy Grab links are bearer instruments. Anyone who has the full claim link can c
 - **Brute force**: Solana keypairs provide 256-bit-class entropy. Guessing a valid funded private key is computationally infeasible.
 - **Claim replay**: once a coupon wallet is swept, its balance is gone.
 - **Readable server history**: batch history is encrypted before it is sent to the API server.
-- **Hidden platform fee**: the 1% platform fee is shown before funding and paid inside the funding transaction.
+- **Hidden platform fee**: the 1% platform fee and 0.001 SOL minimum are shown before funding and paid inside the funding transaction.
 
 ## Economic Rules
 
 - Minimum claim size: `0.05 SOL`.
-- Platform fee: `1%` of total funded rewards in each batch.
+- Platform fee: `1%` of total funded rewards in each batch, with a `0.001 SOL` minimum.
 - Platform fee recipient: `FDZ6AkGe3s4JN5jkwzYxzv1fTJkjgHN2nmXVQ6oiBQNT`.
 - Fee use: Easy Grab marketing and ecosystem growth.
 

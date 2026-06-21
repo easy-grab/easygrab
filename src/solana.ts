@@ -15,6 +15,8 @@ export const MAX_COUPONS_PER_BATCH = 12;
 export const MIN_CLAIM_SOL = "0.05";
 export const MIN_CLAIM_LAMPORTS = 50_000_000;
 export const PLATFORM_FEE_BPS = 100;
+export const MIN_PLATFORM_FEE_SOL = "0.001";
+export const MIN_PLATFORM_FEE_LAMPORTS = 1_000_000;
 export const PLATFORM_FEE_RECIPIENT = "FDZ6AkGe3s4JN5jkwzYxzv1fTJkjgHN2nmXVQ6oiBQNT";
 
 let activeWallet: WalletProvider | null = null;
@@ -243,7 +245,7 @@ export function couponBatchLamports(coupons: Coupon[]) {
 
 export function platformFeeLamports(coupons: Coupon[]) {
   const rewardLamports = couponBatchLamports(coupons);
-  return Math.ceil((rewardLamports * PLATFORM_FEE_BPS) / 10_000);
+  return Math.max(Math.ceil((rewardLamports * PLATFORM_FEE_BPS) / 10_000), MIN_PLATFORM_FEE_LAMPORTS);
 }
 
 export function fundingTotalLamports(coupons: Coupon[]) {

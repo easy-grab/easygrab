@@ -21,14 +21,14 @@ Easy Grab is designed to be easy to distrust and easy to verify.
 - Claim secrets are generated client-side.
 - Claim secrets are carried in URL fragments, not query parameters.
 - The server does not need a database of coupon secrets.
-- Funding includes a visible 1% platform fee.
+- Funding includes a visible 1% platform fee, with a 0.001 SOL minimum.
 - The platform fee is reinvested into marketing and ecosystem growth.
 - Anyone can inspect the source and run `npm run verify`.
 
 ## Fee Model
 
 - Minimum claim size: `0.05 SOL`.
-- Platform fee: `1%` of funded rewards.
+- Platform fee: `1%` of funded rewards, with a `0.001 SOL` minimum.
 - Recipient: `FDZ6AkGe3s4JN5jkwzYxzv1fTJkjgHN2nmXVQ6oiBQNT`.
 
 ## Claims We Should Not Make

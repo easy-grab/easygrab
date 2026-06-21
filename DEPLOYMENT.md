@@ -34,7 +34,7 @@ After editing `.env`, restart `npm run dev`. Vite only reads env values at serve
 1. Connect wallet.
 2. Confirm the top wallet balance card shows a balance with up to four decimals.
 3. Confirm `SOL per claim` starts at `0.05`.
-4. Confirm the batch preview shows the 1% platform fee.
+4. Confirm the batch preview shows the 1% platform fee and 0.001 SOL minimum.
 5. Generate a devnet batch.
 6. Fund the batch.
 7. Open a claim link.
@@ -113,6 +113,6 @@ Do not deploy the current file-backed API as a plain Vercel serverless function 
 - Dependabot is enabled.
 - README, SECURITY, THREAT_MODEL, and TRANSPARENCY disclose:
   - minimum claim size: `0.05 SOL`
-  - platform fee: `1%`
+  - platform fee: `1%`, minimum `0.001 SOL`
   - fee recipient: `FDZ6AkGe3s4JN5jkwzYxzv1fTJkjgHN2nmXVQ6oiBQNT`
   - fee use: Easy Grab marketing and ecosystem growth
