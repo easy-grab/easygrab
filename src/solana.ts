@@ -20,6 +20,12 @@ let rpcQueue = Promise.resolve();
 
 const RPC_MIN_GAP_MS = Number(import.meta.env.VITE_RPC_MIN_GAP_MS ?? "140");
 const RPC_RETRY_DELAYS_MS = [800, 1600, 3200, 5200];
+const QUICK_CONFIRM_TIMEOUT_MS = 12_000;
+
+export type SubmittedTransaction = {
+  signature: string;
+  confirmed: boolean;
+};
 
 function wait(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
@@ -113,6 +119,30 @@ export async function sendRpcRawTransaction(connection: Connection, serialized: 
 
 export async function confirmRpcTransaction(connection: Connection, signature: string) {
   return queuedRpc(() => connection.confirmTransaction(signature, "confirmed"));
+}
+
+export async function getRpcSignatureStatuses(connection: Connection, signatures: string[]) {
+  return queuedRpc(() => connection.getSignatureStatuses(signatures, { searchTransactionHistory: true }));
+}
+
+async function quickConfirmTransaction(connection: Connection, signature: string) {
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < QUICK_CONFIRM_TIMEOUT_MS) {
+    const status = (await getRpcSignatureStatuses(connection, [signature])).value[0];
+
+    if (status?.err) {
+      throw new Error(`Transaction failed on-chain: ${JSON.stringify(status.err)}`);
+    }
+
+    if (status?.confirmationStatus === "confirmed" || status?.confirmationStatus === "finalized") {
+      return true;
+    }
+
+    await wait(1000);
+  }
+
+  return false;
 }
 
 export async function getRpcFeeForMessage(connection: Connection, message: VersionedMessage) {
@@ -315,8 +345,8 @@ export async function fundCoupons(cluster: Cluster, creator: PublicKey, coupons:
 
   const signed = await wallet.signTransaction(transaction);
   const signature = await sendRpcRawTransaction(connection, signed.serialize());
-  await confirmRpcTransaction(connection, signature);
-  return signature;
+  const confirmed = await quickConfirmTransaction(connection, signature);
+  return { signature, confirmed };
 }
 
 export function couponFromSecret(secret: string) {
@@ -359,8 +389,8 @@ export async function claimCoupon(cluster: Cluster, recipient: PublicKey, secret
 
   const signed = await wallet.signTransaction(transaction);
   const signature = await sendRpcRawTransaction(connection, signed.serialize());
-  await confirmRpcTransaction(connection, signature);
-  return { signature, balance };
+  const confirmed = await quickConfirmTransaction(connection, signature);
+  return { signature, balance, confirmed };
 }
 
 export async function claimCouponToAddress(cluster: Cluster, recipient: PublicKey, secret: string) {
@@ -403,6 +433,6 @@ export async function claimCouponToAddress(cluster: Cluster, recipient: PublicKe
 
   transaction.sign(couponKeypair);
   const signature = await sendRpcRawTransaction(connection, transaction.serialize());
-  await confirmRpcTransaction(connection, signature);
-  return { signature, balance: claimableLamports, fee };
+  const confirmed = await quickConfirmTransaction(connection, signature);
+  return { signature, balance: claimableLamports, fee, confirmed };
 }

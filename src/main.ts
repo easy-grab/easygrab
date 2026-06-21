@@ -457,6 +457,21 @@ function friendlyActionError(error: unknown) {
   return message;
 }
 
+function scheduleBatchRefresh(batchId: string, delayMs = 9000) {
+  window.setTimeout(() => {
+    void refreshBatchStatus(batchId)
+      .then(() => refreshWalletBalance({ showChecking: false }))
+      .then(() => render())
+      .catch(() => undefined);
+  }, delayMs);
+}
+
+function scheduleClaimRefresh(secret: string, targetCluster: Cluster, delayMs = 9000) {
+  window.setTimeout(() => {
+    void renderClaim(secret, targetCluster);
+  }, delayMs);
+}
+
 function walletBalanceTone() {
   if (!walletAddress) return "";
   if (walletBalanceLabel === "Checking...") return "is-loading";
@@ -1153,7 +1168,8 @@ function renderCreate() {
       const savedDraft = await saveBatchToServer(batch);
 
       const creator = new PublicKey(walletAddress);
-      const signature = await fundCoupons(cluster, creator, coupons);
+      const result = await fundCoupons(cluster, creator, coupons);
+      const signature = result.signature;
       confirmedSignature = signature;
       const nextBatch = { ...savedDraft, fundSignature: signature };
       replaceBatch(nextBatch);
@@ -1161,12 +1177,19 @@ function renderCreate() {
       historyStatus = "Saving funding record";
       render();
       await saveBatchToServer(nextBatch, { queueOnFailure: true });
-      await refreshBatchStatus(nextBatch.id);
-      await refreshWalletBalance();
+      if (result.confirmed) {
+        await refreshBatchStatus(nextBatch.id);
+        await refreshWalletBalance();
+      } else {
+        scheduleBatchRefresh(nextBatch.id);
+      }
+
       setNotice({
-        tone: "success",
-        title: "Batch funded",
-        body: "The claim links are funded and ready to share.",
+        tone: result.confirmed ? "success" : "info",
+        title: result.confirmed ? "Batch funded" : "Funding submitted",
+        body: result.confirmed
+          ? "The claim links are funded and ready to share."
+          : "The transaction was submitted. Solana confirmation is still catching up, so status will refresh shortly.",
         href: explorer(signature),
         action: "View transaction"
       });
@@ -1582,13 +1605,20 @@ async function renderClaim(secret: string, routeCluster?: Cluster) {
       void refreshWalletBalance({ showChecking: false });
       const result = await claimCoupon(claimCluster, recipient, secret);
       setNotice({
-        tone: "success",
-        title: "Claim complete",
-        body: `${lamportsToSol(result.balance)} SOL was sent to your wallet.`,
+        tone: result.confirmed ? "success" : "info",
+        title: result.confirmed ? "Claim complete" : "Claim submitted",
+        body: result.confirmed
+          ? `${lamportsToSol(result.balance)} SOL was sent to your wallet.`
+          : `${lamportsToSol(result.balance)} SOL was submitted to your wallet. Solana confirmation is still catching up.`,
         href: explorer(result.signature),
         action: "View transaction"
       });
-      await renderClaim(secret, claimCluster);
+      if (result.confirmed) {
+        await renderClaim(secret, claimCluster);
+      } else {
+        scheduleClaimRefresh(secret, claimCluster);
+        render();
+      }
     } catch (error) {
       setNotice({
         tone: "error",
@@ -1608,13 +1638,22 @@ async function renderClaim(secret: string, routeCluster?: Cluster) {
       const recipient = new PublicKey(input?.value.trim() || "");
       const result = await claimCouponToAddress(claimCluster, recipient, secret);
       setNotice({
-        tone: "success",
-        title: "Sent to address",
-        body: `${lamportsToSol(result.balance)} SOL was sent. Network fee: ${lamportsToSol(result.fee)} SOL.`,
+        tone: result.confirmed ? "success" : "info",
+        title: result.confirmed ? "Sent to address" : "Address send submitted",
+        body: result.confirmed
+          ? `${lamportsToSol(result.balance)} SOL was sent. Network fee: ${lamportsToSol(result.fee)} SOL.`
+          : `${lamportsToSol(result.balance)} SOL was submitted. Network fee: ${lamportsToSol(
+              result.fee
+            )} SOL. Solana confirmation is still catching up.`,
         href: explorer(result.signature),
         action: "View transaction"
       });
-      await renderClaim(secret, claimCluster);
+      if (result.confirmed) {
+        await renderClaim(secret, claimCluster);
+      } else {
+        scheduleClaimRefresh(secret, claimCluster);
+        render();
+      }
     } catch (error) {
       setNotice({
         tone: "error",
