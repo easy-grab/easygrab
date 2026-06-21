@@ -383,6 +383,22 @@ function renderNotice() {
   `;
 }
 
+function isClaimNotice(notice: Notice | null) {
+  return Boolean(
+    notice &&
+      ["Claim complete", "Claim failed", "Sent to address", "Address claim failed"].includes(notice.title)
+  );
+}
+
+function enterClaimRoute() {
+  if (!isClaimNotice(appNotice)) {
+    appNotice = null;
+  }
+
+  networkMenuOpen = false;
+  walletMenuOpen = false;
+}
+
 async function connectAndTrackWallet() {
   const publicKey = await connectWallet();
   walletAddress = publicKey.toBase58();
@@ -1409,6 +1425,7 @@ async function renderClaim(secret: string, routeCluster?: Cluster) {
 function render() {
   const claimRoute = parseClaimRoute();
   if (claimRoute) {
+    enterClaimRoute();
     void renderClaim(claimRoute.secret, claimRoute.cluster);
     return;
   }
