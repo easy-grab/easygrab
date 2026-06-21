@@ -57,6 +57,9 @@ let walletBalanceLabel = "";
 let historyAccess: HistoryAccess | null = null;
 let historyStatus = "Connect wallet";
 let appNotice: Notice | null = null;
+let activeRouteKey = "";
+let walletBalanceTimer: number | null = null;
+let balanceRefreshInFlight = false;
 
 type EncryptedBatchRecord = {
   id: string;
@@ -81,6 +84,7 @@ const OFFICIAL_X_URL = "https://x.com/easygrabfun";
 const GITHUB_URL = "https://github.com/easy-grab/easygrab";
 const API_BASE = import.meta.env.VITE_API_URL?.trim() || "http://127.0.0.1:8787";
 const BRAND_LOGO_URL = "/easygrab-logo-v2.png";
+const WALLET_BALANCE_REFRESH_MS = 20_000;
 
 const OFFICIAL_LINKS = {
   solanaDocs: "https://solana.com/docs",
@@ -390,13 +394,34 @@ function isClaimNotice(notice: Notice | null) {
   );
 }
 
-function enterClaimRoute() {
-  if (!isClaimNotice(appNotice)) {
+function enterRoute(routeKey: string, routeType: "app" | "architecture" | "claim") {
+  if (activeRouteKey === routeKey) return;
+
+  activeRouteKey = routeKey;
+  networkMenuOpen = false;
+  walletMenuOpen = false;
+
+  if (routeType === "claim" && !isClaimNotice(appNotice)) {
     appNotice = null;
   }
 
-  networkMenuOpen = false;
-  walletMenuOpen = false;
+  if (routeType !== "claim" && isClaimNotice(appNotice)) {
+    appNotice = null;
+  }
+}
+
+function stopWalletBalanceWatcher() {
+  if (walletBalanceTimer !== null) {
+    window.clearInterval(walletBalanceTimer);
+    walletBalanceTimer = null;
+  }
+}
+
+function startWalletBalanceWatcher() {
+  stopWalletBalanceWatcher();
+  walletBalanceTimer = window.setInterval(() => {
+    void refreshWalletBalance({ showChecking: false });
+  }, WALLET_BALANCE_REFRESH_MS);
 }
 
 async function connectAndTrackWallet() {
@@ -436,18 +461,25 @@ async function connectAndTrackWallet() {
       render();
     });
 
+  startWalletBalanceWatcher();
   render();
   return publicKey;
 }
 
-async function refreshWalletBalance() {
+async function refreshWalletBalance(options: { showChecking?: boolean } = { showChecking: true }) {
   if (!walletAddress) {
     walletBalanceLabel = "";
+    stopWalletBalanceWatcher();
     return;
   }
 
-  walletBalanceLabel = "Checking...";
-  render();
+  if (balanceRefreshInFlight) return;
+  balanceRefreshInFlight = true;
+
+  if (options.showChecking !== false) {
+    walletBalanceLabel = "Checking...";
+    render();
+  }
 
   try {
     const balance = await getWalletBalance(cluster, new PublicKey(walletAddress));
@@ -461,6 +493,8 @@ async function refreshWalletBalance() {
         body: balanceErrorMessage(error)
       });
     }
+  } finally {
+    balanceRefreshInFlight = false;
   }
 
   render();
@@ -742,6 +776,7 @@ function renderShell(content: string) {
     void disconnectWallet();
     walletAddress = "";
     walletBalanceLabel = "";
+    stopWalletBalanceWatcher();
     historyAccess = null;
     historyStatus = "Connect wallet";
     batches = [];
@@ -1374,6 +1409,8 @@ async function renderClaim(secret: string, routeCluster?: Cluster) {
       setBusy(true);
       const recipient = await connectWallet();
       walletAddress = recipient.toBase58();
+      startWalletBalanceWatcher();
+      void refreshWalletBalance({ showChecking: false });
       const result = await claimCoupon(claimCluster, recipient, secret);
       setNotice({
         tone: "success",
@@ -1425,16 +1462,18 @@ async function renderClaim(secret: string, routeCluster?: Cluster) {
 function render() {
   const claimRoute = parseClaimRoute();
   if (claimRoute) {
-    enterClaimRoute();
+    enterRoute(`claim:${claimRoute.cluster ?? "auto"}:${claimRoute.secret}`, "claim");
     void renderClaim(claimRoute.secret, claimRoute.cluster);
     return;
   }
 
   if (isArchitectureRoute()) {
+    enterRoute("architecture", "architecture");
     renderArchitecturePage();
     return;
   }
 
+  enterRoute("app", "app");
   renderCreate();
 }
 
@@ -1450,6 +1489,18 @@ window.addEventListener("popstate", () => {
 
 window.addEventListener("hashchange", () => {
   render();
+});
+
+window.addEventListener("focus", () => {
+  if (walletAddress) {
+    void refreshWalletBalance({ showChecking: false });
+  }
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && walletAddress) {
+    void refreshWalletBalance({ showChecking: false });
+  }
 });
 
 render();
