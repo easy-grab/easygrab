@@ -10,14 +10,13 @@ Easy Grab links are bearer instruments. Anyone who has the full claim link can c
 - **Claim replay**: once a coupon wallet is swept, its balance is gone.
 - **Readable server history**: batch history is encrypted before it is sent to the API server.
 - **Missing funded batch history**: funding is blocked until encrypted batch history is saved successfully.
-- **Hidden platform fee**: the 1% platform fee and 0.001 SOL minimum are shown before funding and paid inside the funding transaction.
+- **Hidden service fee**: Easy Grab adds no service fee in this version. Funding transactions only fund the claim wallets and pay Solana network fees.
 
 ## Economic Rules
 
 - Minimum claim size: `0.01 SOL`.
-- Platform fee: `1%` of total funded rewards in each batch, with a `0.001 SOL` minimum.
-- Platform fee recipient: `4L2Ws5z7bQEoCyG2kAhjW2EqxFrUtJoFj8JnwyogTzXw`.
-- Fee use: Easy Grab marketing and ecosystem growth.
+- Easy Grab service fee: `0`.
+- Solana network fees still apply to funding and claim transactions.
 
 ## Important Tradeoffs
 

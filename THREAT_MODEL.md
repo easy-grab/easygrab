@@ -12,7 +12,7 @@ Easy Grab lets a creator distribute SOL claim links without trusting a backend h
 - Recipient wallet destination.
 - Encrypted batch history.
 - Built production JavaScript.
-- Platform fee destination and fee transparency.
+- Fee transparency.
 
 ## Trust Boundaries
 
@@ -34,14 +34,13 @@ Easy Grab lets a creator distribute SOL claim links without trusting a backend h
 | Claim replay | Claiming empties the temporary claim wallet. |
 | Funded batch missing from server history | Funding is blocked until encrypted history is saved before the transaction. Post-funding encrypted updates retry locally if the API is interrupted. |
 | Malicious code added later | CI, CodeQL, PR checklist, and security check run on pull requests. |
-| Hidden platform fee | The UI and source disclose the 1% platform fee and 0.001 SOL minimum before funding. |
+| Hidden service fee | Easy Grab adds no service fee in this version. Source and docs disclose that only Solana network fees apply. |
 
 ## Economic Rules
 
 - Minimum claim size: `0.01 SOL`.
-- Platform fee: `1%` of funded rewards, with a `0.001 SOL` minimum.
-- Platform fee recipient: `4L2Ws5z7bQEoCyG2kAhjW2EqxFrUtJoFj8JnwyogTzXw`.
-- Fee use: marketing and ecosystem growth.
+- Easy Grab service fee: `0`.
+- Solana network fees still apply to funding and claim transactions.
 
 ## Residual Risks
 

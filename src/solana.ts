@@ -14,10 +14,6 @@ import type { Cluster, Coupon, WalletOption, WalletProvider } from "./types";
 export const MAX_COUPONS_PER_BATCH = 12;
 export const MIN_CLAIM_SOL = "0.01";
 export const MIN_CLAIM_LAMPORTS = 10_000_000;
-export const PLATFORM_FEE_BPS = 100;
-export const MIN_PLATFORM_FEE_SOL = "0.001";
-export const MIN_PLATFORM_FEE_LAMPORTS = 1_000_000;
-export const PLATFORM_FEE_RECIPIENT = "4L2Ws5z7bQEoCyG2kAhjW2EqxFrUtJoFj8JnwyogTzXw";
 
 let activeWallet: WalletProvider | null = null;
 let rpcQueue = Promise.resolve();
@@ -243,13 +239,8 @@ export function couponBatchLamports(coupons: Coupon[]) {
   return coupons.reduce((sum, coupon) => sum + solToLamports(coupon.amountSol), 0);
 }
 
-export function platformFeeLamports(coupons: Coupon[]) {
-  const rewardLamports = couponBatchLamports(coupons);
-  return Math.max(Math.ceil((rewardLamports * PLATFORM_FEE_BPS) / 10_000), MIN_PLATFORM_FEE_LAMPORTS);
-}
-
 export function fundingTotalLamports(coupons: Coupon[]) {
-  return couponBatchLamports(coupons) + platformFeeLamports(coupons) + 10_000;
+  return couponBatchLamports(coupons) + 10_000;
 }
 
 export async function getWalletBalance(cluster: Cluster, wallet: PublicKey) {
@@ -303,7 +294,7 @@ export async function fundCoupons(cluster: Cluster, creator: PublicKey, coupons:
     throw new Error(
       `${networkName} balance is ${lamportsToSol(balance)} SOL, but this batch needs about ${lamportsToSol(
         totalLamports
-      )} SOL including the platform fee and network fee. Connected wallet: ${creator.toBase58()}`
+      )} SOL including the estimated network fee. Connected wallet: ${creator.toBase58()}`
     );
   }
 
@@ -318,14 +309,6 @@ export async function fundCoupons(cluster: Cluster, creator: PublicKey, coupons:
       })
     );
   }
-
-  transaction.add(
-    SystemProgram.transfer({
-      fromPubkey: creator,
-      toPubkey: new PublicKey(PLATFORM_FEE_RECIPIENT),
-      lamports: platformFeeLamports(coupons)
-    })
-  );
 
   transaction.feePayer = creator;
   transaction.recentBlockhash = (await getRpcLatestBlockhash(connection)).blockhash;

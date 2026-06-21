@@ -20,27 +20,18 @@ Easy Grab creates one temporary Solana wallet per reward link.
    - Paste a Solana address and receive without connecting a wallet. The funded link pays the network fee, so the received amount is slightly lower.
 7. After claim, the funded temporary wallet is emptied and the link is shown as claimed.
 
-## Fees and Minimums
+## Costs and Minimums
 
 - Minimum claim size: `0.01 SOL` per claim link.
-- Platform fee: `1%` of the total reward amount in each funded batch, with a `0.001 SOL` minimum.
-- The platform fee is included in the same funding transaction.
-- Platform fee recipient: `4L2Ws5z7bQEoCyG2kAhjW2EqxFrUtJoFj8JnwyogTzXw`
-- Platform fee use: Easy Grab marketing and ecosystem growth.
+- Easy Grab service fee: `0`.
+- Creators only fund the claim wallets and pay the Solana network fee required by the funding transaction.
+- Address-based recipients receive slightly less because the funded claim wallet pays the Solana network fee for that receive flow.
 
 Example:
 
 ```txt
 2 links x 0.01 SOL = 0.02 SOL rewards
-1% platform fee = 0.001 SOL
-Solana network fee is added at transaction time
-```
-
-Small batch example:
-
-```txt
-1 link x 0.01 SOL = 0.01 SOL rewards
-1% would be 0.0001 SOL, so the minimum platform fee applies: 0.001 SOL
+Easy Grab service fee = 0 SOL
 Solana network fee is added at transaction time
 ```
 
@@ -56,7 +47,7 @@ Solana network fee is added at transaction time
 - URL fragments are not sent to the static web server during normal HTTP requests.
 - A full claim link is a bearer voucher. Whoever has the full link can claim it.
 - Short public claim URLs are intentionally not enabled in this version because a server-resolved short link would require the server to recover claim secrets.
-- The platform fee and minimum platform fee are visible before funding and paid inside the funding transaction.
+- Easy Grab does not add a service fee in this version.
 
 ## Mainnet RPC
 

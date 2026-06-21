@@ -38,7 +38,7 @@ After editing `.env`, restart `npm run dev`. Vite only reads env values at serve
 1. Connect wallet.
 2. Confirm the top wallet balance card shows a balance with up to four decimals.
 3. Confirm `SOL per claim` starts at `0.01`.
-4. Confirm the batch preview shows the 1% platform fee and 0.001 SOL minimum.
+4. Confirm the batch preview shows no Easy Grab service fee.
 5. Generate a devnet batch.
 6. Confirm encrypted history is saved before funding.
 7. Fund the batch.
@@ -147,9 +147,8 @@ The browser blocks mainnet funding until the encrypted draft history is saved. A
 - Dependabot is enabled.
 - README, SECURITY, THREAT_MODEL, and TRANSPARENCY disclose:
   - minimum claim size: `0.01 SOL`
-  - platform fee: `1%`, minimum `0.001 SOL`
-  - fee recipient: `4L2Ws5z7bQEoCyG2kAhjW2EqxFrUtJoFj8JnwyogTzXw`
-  - fee use: Easy Grab marketing and ecosystem growth
+  - Easy Grab service fee: `0`
+  - Solana network fees still apply
 
 ## Mainnet Smoke Test
 
@@ -159,7 +158,7 @@ Run this after deployment and before public promotion:
 2. Confirm the site is on `Mainnet`.
 3. Connect a wallet with a small amount of SOL.
 4. Create `1` claim with `0.01 SOL`.
-5. Confirm the app shows the reward, the `1% / min 0.001 SOL` platform fee, and the required total.
+5. Confirm the app shows the reward, no Easy Grab service fee, and the required total.
 6. Generate the claim link.
 7. Confirm encrypted server history appears in the saved batch list.
 8. Fund the batch.
