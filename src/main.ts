@@ -521,7 +521,7 @@ function renderWalletModal() {
       <section class="wallet-modal" role="dialog" aria-modal="true" aria-labelledby="wallet-modal-title">
         <button id="wallet-modal-close" class="modal-close" aria-label="Close wallet selection">Close</button>
         <div class="modal-brand" aria-hidden="true">
-          <img src="/grab-mark.svg" alt="" />
+          <img src="/easygrab-logo.png" alt="" />
         </div>
         <h2 id="wallet-modal-title">Welcome to ${BRAND_NAME}.</h2>
         <div class="modal-divider" aria-hidden="true"></div>
@@ -548,7 +548,7 @@ function renderShell(content: string) {
       <header class="topbar">
         <div class="brand-lockup">
           <div class="brand-mark" aria-hidden="true">
-            <img src="/grab-mark.svg" alt="" />
+            <img src="/easygrab-logo.png" alt="" />
           </div>
           <div>
             <div class="mark">${BRAND_NAME}</div>
