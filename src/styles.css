@@ -141,7 +141,9 @@ a {
   width: 40px;
 }
 
-.brand-mark img {
+.brand-mark img,
+.modal-brand img {
+  display: block;
   height: 100%;
   object-fit: cover;
   width: 100%;

@@ -16,6 +16,12 @@ Recipients can claim in two ways:
 - Connect a wallet and receive the full amount.
 - Paste a Solana address and receive without connecting a wallet.
 
+## Economic Model
+
+- Minimum claim: 0.05 SOL
+- Platform fee: 1% of funded rewards
+- Fee use: marketing and ecosystem growth
+
 ## Tone
 
 - Fast

@@ -11,13 +11,29 @@ Official GitHub: https://github.com/easy-grab/easygrab
 Easy Grab creates one temporary Solana wallet per reward link.
 
 1. A creator connects Phantom, Solflare, or Coinbase Wallet.
-2. The creator chooses `SOL per claim` and `Claims in batch`.
+2. The creator chooses `SOL per claim` and `Claims in batch`. Each claim must be at least `0.05 SOL`.
 3. The browser generates temporary claim wallets.
 4. The creator funds the batch in one wallet transaction.
 5. Each recipient opens a claim link and chooses one of two receive modes:
    - Connect a wallet and receive the full claim amount.
    - Paste a Solana address and receive without connecting a wallet. The funded link pays the network fee, so the received amount is slightly lower.
 6. After claim, the funded temporary wallet is emptied and the link is shown as claimed.
+
+## Fees and Minimums
+
+- Minimum claim size: `0.05 SOL` per claim link.
+- Platform fee: `1%` of the total reward amount in each funded batch.
+- The platform fee is included in the same funding transaction.
+- Platform fee recipient: `FDZ6AkGe3s4JN5jkwzYxzv1fTJkjgHN2nmXVQ6oiBQNT`
+- Platform fee use: Easy Grab marketing and ecosystem growth.
+
+Example:
+
+```txt
+2 links x 0.05 SOL = 0.10 SOL rewards
+1% platform fee = 0.001 SOL
+Solana network fee is added at transaction time
+```
 
 ## Current Security Model
 
@@ -29,6 +45,7 @@ Easy Grab creates one temporary Solana wallet per reward link.
 - URL fragments are not sent to the static web server during normal HTTP requests.
 - A full claim link is a bearer voucher. Whoever has the full link can claim it.
 - Short public claim URLs are intentionally not enabled in this version because a server-resolved short link would require the server to recover claim secrets.
+- The platform fee is visible before funding and paid inside the funding transaction.
 
 ## Mainnet RPC
 
@@ -85,6 +102,8 @@ This runs:
 - Set `VITE_API_URL` to the HTTPS URL of the encrypted history API.
 - Set `VITE_MAINNET_RPC_URL` to a reliable mainnet RPC provider before real mainnet use.
 - Use Solscan links for transaction verification.
+
+See `DEPLOYMENT.md` for local testing, Vercel domain setup, and production environment variables.
 
 ## Security Evidence
 

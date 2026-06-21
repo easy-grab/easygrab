@@ -1,6 +1,6 @@
 # Security Transparency
 
-Grab should be easy to distrust and easy to verify.
+Easy Grab is designed to be easy to distrust and easy to verify.
 
 ## Public Evidence to Show on GitHub
 
@@ -17,11 +17,19 @@ Grab should be easy to distrust and easy to verify.
 
 ## Claims We Can Safely Make
 
-- The MVP does not run a backend hot wallet.
+- Easy Grab does not run a backend hot wallet.
 - Claim secrets are generated client-side.
 - Claim secrets are carried in URL fragments, not query parameters.
 - The server does not need a database of coupon secrets.
+- Funding includes a visible 1% platform fee.
+- The platform fee is reinvested into marketing and ecosystem growth.
 - Anyone can inspect the source and run `npm run verify`.
+
+## Fee Model
+
+- Minimum claim size: `0.05 SOL`.
+- Platform fee: `1%` of funded rewards.
+- Recipient: `FDZ6AkGe3s4JN5jkwzYxzv1fTJkjgHN2nmXVQ6oiBQNT`.
 
 ## Claims We Should Not Make
 
@@ -33,6 +41,6 @@ Grab should be easy to distrust and easy to verify.
 
 ## Recommended Public Wording
 
-> Grab is non-custodial by design, but claim links are bearer instruments. Treat each link like cash.
+> Easy Grab is non-custodial by design, but claim links are bearer instruments. Treat each link like cash.
 
 > Use small amounts until the code has been independently reviewed.

@@ -11,10 +11,10 @@ import {
   claimCoupon,
   claimCouponToAddress,
   connectWallet,
-  couponBatchLamports,
   couponFromSecret,
   disconnectWallet,
   fundCoupons,
+  fundingTotalLamports,
   generateCouponSecrets,
   getConnection,
   getDetectedWallets,
@@ -24,6 +24,8 @@ import {
   getWalletBalance,
   lamportsToSol,
   MAX_COUPONS_PER_BATCH,
+  MIN_CLAIM_SOL,
+  platformFeeLamports,
   parseClaimRoute,
   selectWalletProvider,
   signWalletMessage
@@ -49,7 +51,7 @@ let lastFundSignature = "";
 let networkMenuOpen = false;
 let walletMenuOpen = false;
 let walletModalOpen = false;
-let batchAmountSol = "0.001";
+let batchAmountSol = MIN_CLAIM_SOL;
 let batchCount = 3;
 let walletBalanceLabel = "";
 let historyAccess: HistoryAccess | null = null;
@@ -78,6 +80,7 @@ const EXAMPLE_CA = "So11111111111111111111111111111111111111112";
 const OFFICIAL_X_URL = "https://x.com/easygrabfun";
 const GITHUB_URL = "https://github.com/easy-grab/easygrab";
 const API_BASE = import.meta.env.VITE_API_URL?.trim() || "http://127.0.0.1:8787";
+const BRAND_LOGO_URL = "/easygrab-logo-v2.png";
 
 const OFFICIAL_LINKS = {
   solanaDocs: "https://solana.com/docs",
@@ -167,7 +170,12 @@ function primaryActionHelp() {
 
 function requiredFundingLabel() {
   if (!coupons.length) return "Set batch";
-  return `${lamportsToSol(couponBatchLamports(coupons) + 10_000)} SOL`;
+  return `${lamportsToSol(fundingTotalLamports(coupons))} SOL`;
+}
+
+function platformFeeLabel() {
+  if (!coupons.length) return "1%";
+  return `${lamportsToSol(platformFeeLamports(coupons))} SOL`;
 }
 
 function historyMessage(address: string) {
@@ -380,6 +388,7 @@ async function connectAndTrackWallet() {
   walletAddress = publicKey.toBase58();
   walletBalanceLabel = "Checking...";
   walletMenuOpen = false;
+  historyStatus = "Loading history";
   render();
 
   try {
@@ -396,17 +405,20 @@ async function connectAndTrackWallet() {
     }
   }
 
-  try {
-    await loadBatchesFromServer(walletAddress);
-    historyStatus = `${batches.length} batches`;
-  } catch (error) {
-    historyStatus = "Server unavailable";
-    setNotice({
-      tone: "error",
-      title: "Encrypted history unavailable",
-      body: error instanceof Error ? error.message : String(error)
+  void loadBatchesFromServer(walletAddress)
+    .then(() => {
+      historyStatus = `${batches.length} batches`;
+      render();
+    })
+    .catch((error) => {
+      historyStatus = "History locked";
+      setNotice({
+        tone: "info",
+        title: "Encrypted history locked",
+        body: error instanceof Error ? error.message : String(error)
+      });
+      render();
     });
-  }
 
   render();
   return publicKey;
@@ -521,7 +533,7 @@ function renderWalletModal() {
       <section class="wallet-modal" role="dialog" aria-modal="true" aria-labelledby="wallet-modal-title">
         <button id="wallet-modal-close" class="modal-close" aria-label="Close wallet selection">Close</button>
         <div class="modal-brand" aria-hidden="true">
-          <img src="/easygrab-logo.png" alt="" />
+          <img src="${BRAND_LOGO_URL}" alt="" />
         </div>
         <h2 id="wallet-modal-title">Welcome to ${BRAND_NAME}.</h2>
         <div class="modal-divider" aria-hidden="true"></div>
@@ -548,7 +560,7 @@ function renderShell(content: string) {
       <header class="topbar">
         <div class="brand-lockup">
           <div class="brand-mark" aria-hidden="true">
-            <img src="/easygrab-logo.png" alt="" />
+            <img src="${BRAND_LOGO_URL}" alt="" />
           </div>
           <div>
             <div class="mark">${BRAND_NAME}</div>
@@ -806,7 +818,7 @@ function renderCreate() {
         <div class="input-grid">
           <label>
             SOL per claim
-            <input id="amount" inputmode="decimal" value="${escapeHtml(batchAmountSol)}" ${busy || !walletAddress || coupons.length > 0 ? "disabled" : ""} />
+            <input id="amount" inputmode="decimal" min="${MIN_CLAIM_SOL}" value="${escapeHtml(batchAmountSol)}" ${busy || !walletAddress || coupons.length > 0 ? "disabled" : ""} />
           </label>
           <label>
             Claims in batch
@@ -825,11 +837,12 @@ function renderCreate() {
         <div class="mini-ledger">
           <div><span>Network</span><strong>${cluster === "devnet" ? "Devnet" : "Mainnet"}</strong></div>
           <div><span>Wallet</span><strong>${walletAddress ? shortAddress(walletAddress) : "Not connected"}</strong></div>
+          <div><span>Platform fee</span><strong>${platformFeeLabel()}</strong></div>
           <div><span>Needed</span><strong>${requiredFundingLabel()}</strong></div>
           <div><span>History</span><strong>${escapeHtml(historyStatus)}</strong></div>
           <div><span>Status</span><strong>${lastFundSignature ? "Funded" : coupons.length ? "Generated" : "Ready"}</strong></div>
         </div>
-        <p>For public drops, print one QR per reward. For personal rewards, share one link with one recipient.</p>
+        <p>A 1% platform fee is added during funding and reinvested into Easy Grab marketing and ecosystem growth. Minimum claim size is ${MIN_CLAIM_SOL} SOL.</p>
       </aside>
       </div>
     </section>
@@ -1018,7 +1031,7 @@ function renderArchitecturePage() {
         <button id="doc-back" class="doc-back">Back to app</button>
         <span>${BRAND_NAME} architecture</span>
         <h1>Claim links as a distribution primitive.</h1>
-        <p>${BRAND_NAME} is a Solana-native way to create funded claim links for QR rewards, event campaigns, private payouts, and small-scale community distribution. This page explains how it works, where it fits, how claims move, and what the app verifies before sharing links.</p>
+        <p>${BRAND_NAME} is a Solana-native way to create funded claim links for QR rewards, event campaigns, private payouts, and launch campaigns. This page explains how it works, where it fits, how claims move, and what the app verifies before sharing links.</p>
       </header>
 
       <section class="doc-grid">
@@ -1057,10 +1070,10 @@ function renderArchitecturePage() {
             <h2>Product flow</h2>
             <ol class="doc-steps">
               <li><strong>Connect wallet.</strong> The creator connects the wallet that will fund the drop.</li>
-              <li><strong>Configure batch.</strong> The creator chooses SOL per claim and the number of links.</li>
+              <li><strong>Configure batch.</strong> The creator chooses SOL per claim and the number of links. Each claim must be at least ${MIN_CLAIM_SOL} SOL.</li>
               <li><strong>Generate links.</strong> The browser creates one temporary Solana keypair per claim link.</li>
               <li><strong>Save encrypted history.</strong> The browser encrypts the batch with a wallet-signature-derived key before sending it to the ${BRAND_NAME} API server.</li>
-              <li><strong>Fund batch.</strong> The creator approves a transaction that transfers SOL to each temporary wallet.</li>
+              <li><strong>Fund batch.</strong> The creator approves one transaction that funds each temporary wallet and sends a 1% platform fee for Easy Grab marketing and ecosystem growth.</li>
               <li><strong>Share QR or link.</strong> Each link can be copied, opened, or saved as a QR PNG.</li>
               <li><strong>Refresh status.</strong> The app checks each temporary wallet balance to show remaining SOL and claimed links.</li>
               <li><strong>Recipient claims.</strong> The recipient opens the link and either connects a wallet for the full amount or enters a Solana address for a wallet-free receive flow.</li>
@@ -1075,6 +1088,8 @@ function renderArchitecturePage() {
               <div><strong>Network</strong><p>Solana devnet or mainnet-beta.</p></div>
               <div><strong>SDK</strong><p><code>@solana/web3.js</code> for keypairs, transactions, public keys, RPC, and system transfers.</p></div>
               <div><strong>Transfer</strong><p><code>SystemProgram.transfer</code> moves SOL from creator to coupon wallet, then from coupon wallet to recipient.</p></div>
+              <div><strong>Minimum claim</strong><p>Each generated claim must be at least <code>${MIN_CLAIM_SOL} SOL</code> to keep rewards meaningful and avoid dust-like links.</p></div>
+              <div><strong>Platform fee</strong><p>Funding includes a transparent 1% platform fee. It is sent in the funding transaction and reinvested into Easy Grab marketing and ecosystem growth.</p></div>
               <div><strong>Claim secret</strong><p>Encoded Solana keypair secret carried in the URL fragment after <code>#</code>. Full bearer links should be shared only with the intended recipient.</p></div>
               <div><strong>Address claim</strong><p>The temporary claim wallet signs and pays the fee, sending the remaining balance to the pasted recipient address.</p></div>
               <div><strong>QR export</strong><p>Each claim URL can be rendered and saved as a PNG QR code.</p></div>
@@ -1093,6 +1108,7 @@ function renderArchitecturePage() {
               <article><strong>One-time sweep</strong><p>After a successful claim, the temporary wallet is emptied.</p></article>
               <article><strong>Encrypted history</strong><p>The server receives encrypted payloads. Decryption requires the connected wallet to sign the history unlock message again.</p></article>
               <article><strong>Blind storage id</strong><p>The server indexes history by a signature-derived storage id instead of a readable claim secret list.</p></article>
+              <article><strong>Transparent platform fee</strong><p>The creator sees the 1% platform fee before funding. It is included in the same funding transaction.</p></article>
               <article><strong>Public checks</strong><p>The repository includes build checks, dependency audit, custom security checks, CodeQL, and release hash manifests.</p></article>
               <article><strong>Bearer links</strong><p>A full claim link is like a funded voucher. Whoever has the full link can claim it.</p></article>
             </div>

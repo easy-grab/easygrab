@@ -12,6 +12,10 @@ import bs58 from "bs58";
 import type { Cluster, Coupon, WalletOption, WalletProvider } from "./types";
 
 export const MAX_COUPONS_PER_BATCH = 12;
+export const MIN_CLAIM_SOL = "0.05";
+export const MIN_CLAIM_LAMPORTS = 50_000_000;
+export const PLATFORM_FEE_BPS = 100;
+export const PLATFORM_FEE_RECIPIENT = "FDZ6AkGe3s4JN5jkwzYxzv1fTJkjgHN2nmXVQ6oiBQNT";
 
 let activeWallet: WalletProvider | null = null;
 let rpcQueue = Promise.resolve();
@@ -216,6 +220,10 @@ export function solToLamports(amount: string) {
     throw new Error("Coupon amount must be greater than zero.");
   }
 
+  if (lamports < BigInt(MIN_CLAIM_LAMPORTS)) {
+    throw new Error(`SOL per claim must be at least ${MIN_CLAIM_SOL} SOL.`);
+  }
+
   if (lamports > BigInt(Number.MAX_SAFE_INTEGER)) {
     throw new Error("Amount is too large for this version.");
   }
@@ -231,6 +239,15 @@ export function lamportsToSol(lamports: number) {
 
 export function couponBatchLamports(coupons: Coupon[]) {
   return coupons.reduce((sum, coupon) => sum + solToLamports(coupon.amountSol), 0);
+}
+
+export function platformFeeLamports(coupons: Coupon[]) {
+  const rewardLamports = couponBatchLamports(coupons);
+  return Math.ceil((rewardLamports * PLATFORM_FEE_BPS) / 10_000);
+}
+
+export function fundingTotalLamports(coupons: Coupon[]) {
+  return couponBatchLamports(coupons) + platformFeeLamports(coupons) + 10_000;
 }
 
 export async function getWalletBalance(cluster: Cluster, wallet: PublicKey) {
@@ -276,16 +293,15 @@ export function generateCouponSecrets(count: number, amountSol: string, cluster:
 export async function fundCoupons(cluster: Cluster, creator: PublicKey, coupons: Coupon[]) {
   const wallet = getWallet();
   const connection = getConnection(cluster);
-  const requiredLamports = couponBatchLamports(coupons);
-  const feeBufferLamports = 10_000;
+  const totalLamports = fundingTotalLamports(coupons);
   const balance = await getRpcBalance(connection, creator);
 
-  if (balance < requiredLamports + feeBufferLamports) {
+  if (balance < totalLamports) {
     const networkName = cluster === "devnet" ? "Devnet" : "Mainnet";
     throw new Error(
       `${networkName} balance is ${lamportsToSol(balance)} SOL, but this batch needs about ${lamportsToSol(
-        requiredLamports + feeBufferLamports
-      )} SOL including the network fee. Connected wallet: ${creator.toBase58()}`
+        totalLamports
+      )} SOL including the platform fee and network fee. Connected wallet: ${creator.toBase58()}`
     );
   }
 
@@ -300,6 +316,14 @@ export async function fundCoupons(cluster: Cluster, creator: PublicKey, coupons:
       })
     );
   }
+
+  transaction.add(
+    SystemProgram.transfer({
+      fromPubkey: creator,
+      toPubkey: new PublicKey(PLATFORM_FEE_RECIPIENT),
+      lamports: platformFeeLamports(coupons)
+    })
+  );
 
   transaction.feePayer = creator;
   transaction.recentBlockhash = (await getRpcLatestBlockhash(connection)).blockhash;
