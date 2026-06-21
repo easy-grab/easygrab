@@ -86,6 +86,9 @@ function corsHeaders(request) {
 
   if (origin && allowedOrigins.has(origin)) {
     headers["Access-Control-Allow-Origin"] = origin;
+    if (request.headers["access-control-request-private-network"] === "true") {
+      headers["Access-Control-Allow-Private-Network"] = "true";
+    }
   }
 
   return headers;
