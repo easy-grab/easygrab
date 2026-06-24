@@ -1795,8 +1795,44 @@ a:focus-visible {
   }
 
   .qr-frame {
-    height: 136px;
-    width: 136px;
+    height: min(220px, calc(100vw - 86px));
+    justify-self: center;
+    width: min(220px, calc(100vw - 86px));
+  }
+
+  .qr-frame canvas {
+    height: 100% !important;
+    width: 100% !important;
+  }
+
+  .coupon {
+    align-items: stretch;
+    gap: 14px;
+    padding: 18px;
+  }
+
+  .coupon-body > div:first-child {
+    gap: 8px;
+  }
+
+  .coupon-body strong {
+    font-size: 30px;
+    line-height: 1;
+  }
+
+  .coupon-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    margin-top: 16px;
+  }
+
+  .coupon-actions .copy-button,
+  .coupon-actions .qr-button,
+  .coupon-actions .open-link,
+  .claimed-lock {
+    flex: none;
+    min-height: 48px;
+    width: 100%;
   }
 
   .coupon-body > div,
@@ -1804,5 +1840,24 @@ a:focus-visible {
   .ticket-bottom {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .claim-wrap {
+    gap: 12px;
+    margin-top: 22px;
+  }
+
+  .claim-card,
+  .claim-aside {
+    padding: 18px;
+  }
+
+  .claim-card h1 {
+    font-size: clamp(48px, 16vw, 64px);
+    line-height: 0.94;
+  }
+
+  .claim-method {
+    padding: 16px;
   }
 }
