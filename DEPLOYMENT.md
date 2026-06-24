@@ -67,7 +67,7 @@ Set these Vercel environment variables:
 
 ```bash
 VITE_PUBLIC_APP_URL=https://easygrab.fun
-VITE_API_URL=https://YOUR_API_DOMAIN
+VITE_API_URL=https://api.easygrab.fun
 VITE_MAINNET_RPC_URL=https://mainnet.helius-rpc.com/?api-key=YOUR_API_KEY
 VITE_DEVNET_RPC_URL=https://api.devnet.solana.com
 ```
@@ -92,6 +92,8 @@ www.easygrab.fun   CNAME  cname.vercel-dns.com
 ```
 
 Wait for Vercel to show the domain as valid. DNS propagation can take minutes to hours.
+
+After changing Vercel environment variables or domains, redeploy the latest `main` deployment. Vite reads `VITE_*` variables during the build, so old deployments keep old values.
 
 ## Encrypted History API
 
@@ -123,6 +125,71 @@ The API must be reachable over HTTPS from the browser. A typical setup is:
 ```txt
 https://api.easygrab.fun/api/*  ->  http://127.0.0.1:8787/api/*
 ```
+
+### 24/7 Computer With Cloudflare Tunnel
+
+This keeps the API process on your computer without opening router ports directly.
+
+1. Install `cloudflared`.
+2. Log in:
+
+```powershell
+cloudflared tunnel login
+```
+
+3. Create a tunnel:
+
+```powershell
+cloudflared tunnel create easygrab-api
+```
+
+4. Route the DNS name:
+
+```powershell
+cloudflared tunnel route dns easygrab-api api.easygrab.fun
+```
+
+5. Create a Cloudflare tunnel config that forwards `api.easygrab.fun` to the local API:
+
+```yaml
+tunnel: easygrab-api
+credentials-file: C:\Users\YOUR_USER\.cloudflared\YOUR_TUNNEL_ID.json
+
+ingress:
+  - hostname: api.easygrab.fun
+    service: http://127.0.0.1:8787
+  - service: http_status:404
+```
+
+6. Run the Easy Grab API:
+
+```powershell
+$env:HOST="127.0.0.1"
+$env:PORT="8787"
+$env:ALLOWED_ORIGINS="https://easygrab.fun,https://www.easygrab.fun"
+$env:MAX_BODY_BYTES="1000000"
+npm run api
+```
+
+7. Run the tunnel:
+
+```powershell
+cloudflared tunnel run easygrab-api
+```
+
+8. Verify:
+
+```powershell
+Invoke-WebRequest "https://api.easygrab.fun/api/batches?storageId=test" -Headers @{Origin="https://easygrab.fun"}
+```
+
+The expected response body is:
+
+```json
+{"records":[]}
+```
+
+For launch, run both the API and tunnel through a process manager or Windows services, not a temporary terminal window.
 
 Backup requirement:
 

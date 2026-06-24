@@ -87,7 +87,11 @@ const TICKER = "GRAB";
 const EXAMPLE_CA = "TBA";
 const OFFICIAL_X_URL = "https://x.com/easygrabfun";
 const GITHUB_URL = "https://github.com/easy-grab/easygrab";
-const API_BASE = import.meta.env.VITE_API_URL?.trim() || "http://127.0.0.1:8787";
+const API_BASE =
+  import.meta.env.VITE_API_URL?.trim() ||
+  (["127.0.0.1", "localhost"].includes(window.location.hostname)
+    ? "http://127.0.0.1:8787"
+    : "https://api.easygrab.fun");
 const BRAND_LOGO_URL = "/easygrab-logo-v2.png";
 const WALLET_BALANCE_REFRESH_MS = 20_000;
 const HISTORY_SAVE_RETRIES = 6;

@@ -3,6 +3,7 @@
 Funded Solana claim links for QR drops, private rewards, events, launch campaigns, and small community payouts.
 
 Ticker: `GRAB`  
+Website: https://easygrab.fun  
 Official X: https://x.com/easygrabfun  
 Official GitHub: https://github.com/easy-grab/easygrab
 
@@ -101,7 +102,7 @@ This runs:
 - Deploy the static Vite frontend over HTTPS.
 - Run the encrypted batch API separately on persistent storage, or adapt it to your hosting provider's database/serverless storage.
 - Set `VITE_PUBLIC_APP_URL=https://easygrab.fun` before generating real links.
-- Set `VITE_API_URL` to the HTTPS URL of the encrypted history API.
+- Set `VITE_API_URL=https://api.easygrab.fun` before mainnet launch.
 - Set `VITE_MAINNET_RPC_URL` to a reliable mainnet RPC provider before real mainnet use.
 - Set API `ALLOWED_ORIGIN` to the production frontend origin.
 - Back up `data/encrypted-batches.json` if using the included file-backed API.
