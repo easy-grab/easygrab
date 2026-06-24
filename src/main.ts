@@ -84,7 +84,7 @@ type Notice = {
 
 const BRAND_NAME = "Easy Grab";
 const TICKER = "GRAB";
-const EXAMPLE_CA = "7EnnbeUBptdTyNZRUDPHhViCJnYwz4W8g4aNUDDApump";
+const EXAMPLE_CA = "TBA";
 const OFFICIAL_X_URL = "https://x.com/easygrabfun";
 const GITHUB_URL = "https://github.com/easy-grab/easygrab";
 const API_BASE =
